@@ -1,0 +1,58 @@
+---
+import type { Note } from '../lib/storage';
+
+const { notes = [], selectedId = null } = Astro.props as {
+  notes?: Note[];
+  selectedId?: string | null;
+};
+---
+<ul class="notes-list" role="list">
+  {notes.map((n) => (
+    <li class={['note-item', selectedId === n.id ? 'active' : ''].join(' ')} data-id={n.id}>
+      <button class="note-main" data-action="select" aria-label={"Open " + n.title}>
+        <div class="note-title">{n.title || 'Untitled'}</div>
+        <div class="note-snippet">{(n.content || '').slice(0, 120)}</div>
+      </button>
+      <button class="note-delete" data-action="delete" aria-label={"Delete " + n.title}>Delete</button>
+    </li>
+  ))}
+</ul>
+
+<style>
+  .notes-list { list-style: none; padding: 0; margin: 0; display: grid; gap: 10px; }
+  .note-item {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    gap: 6px;
+    align-items: center;
+    border: 1px solid rgba(0,0,0,0.06);
+    border-radius: 12px;
+    background: #ffffff;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+    transition: transform .05s ease, box-shadow .2s ease, border-color .2s ease;
+    padding: 10px;
+  }
+  .note-item.active {
+    border-color: #2563EB;
+    box-shadow: 0 6px 14px rgba(37,99,235,0.15);
+  }
+  .note-main {
+    background: transparent;
+    border: none;
+    text-align: left;
+    padding: 6px;
+    cursor: pointer;
+  }
+  .note-title { font-weight: 600; color: #111827; margin-bottom: 4px; }
+  .note-snippet { color: #4b5563; font-size: 14px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .note-delete {
+    background: #EF4444;
+    color: white;
+    border: none;
+    border-radius: 8px;
+    padding: 8px 10px;
+    cursor: pointer;
+    transition: opacity .2s ease;
+  }
+  .note-delete:hover { opacity: 0.9; }
+</style>

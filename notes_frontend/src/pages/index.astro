@@ -1,11 +1,363 @@
 ---
-import Welcome from '../components/Welcome.astro';
 import Layout from '../layouts/Layout.astro';
-
-// Welcome to Astro! Wondering what to do next? Check out the Astro documentation at https://docs.astro.build
-// Don't want to use any of this? Delete everything in this file, the `assets`, `components`, and `layouts` directories, and start fresh.
+const appTitle = 'My Notes';
 ---
-
 <Layout>
-	<Welcome />
+  <div class="page">
+    <header class="app-header">
+      <div class="brand">
+        <div class="logo">🗒️</div>
+        <h1>{appTitle}</h1>
+      </div>
+      <div class="actions">
+        <div class="search">
+          <input id="search-notes" type="search" placeholder="Search notes..." aria-label="Search notes" />
+        </div>
+        <button id="new-note-btn" class="btn btn-primary">New Note</button>
+      </div>
+    </header>
+    <main class="content">
+      <section class="list-section">
+        <div id="notes-list-root"></div>
+      </section>
+    </main>
+    <div id="editor-root"></div>
+  </div>
+
+  <script>
+    import { createNotesStore } from '../lib/store';
+
+    const store = createNotesStore();
+
+    const notesRoot = document.getElementById('notes-list-root');
+    const editorRoot = document.getElementById('editor-root');
+    const newBtn = document.getElementById('new-note-btn');
+    const searchInput = document.getElementById('search-notes');
+
+    function renderList() {
+      const { notes, selectedId, loading } = store.getState();
+      if (!notesRoot) return;
+      notesRoot.innerHTML = '';
+      const ul = document.createElement('ul');
+      ul.className = 'notes-list';
+      for (const n of notes) {
+        const li = document.createElement('li');
+        li.className = 'note-item' + (selectedId === n.id ? ' active' : '');
+        li.dataset.id = n.id;
+
+        const mainBtn = document.createElement('button');
+        mainBtn.className = 'note-main';
+        mainBtn.setAttribute('data-action', 'select');
+        mainBtn.ariaLabel = 'Open ' + (n.title || 'Untitled');
+
+        const titleDiv = document.createElement('div');
+        titleDiv.className = 'note-title';
+        titleDiv.textContent = n.title || 'Untitled';
+
+        const snipDiv = document.createElement('div');
+        snipDiv.className = 'note-snippet';
+        snipDiv.textContent = (n.content || '').slice(0, 120);
+
+        mainBtn.appendChild(titleDiv);
+        mainBtn.appendChild(snipDiv);
+
+        const delBtn = document.createElement('button');
+        delBtn.className = 'note-delete';
+        delBtn.setAttribute('data-action', 'delete');
+        delBtn.ariaLabel = 'Delete ' + (n.title || 'Untitled');
+        delBtn.textContent = 'Delete';
+
+        li.appendChild(mainBtn);
+        li.appendChild(delBtn);
+        ul.appendChild(li);
+      }
+      if (loading) {
+        const p = document.createElement('p');
+        p.textContent = 'Loading...';
+        notesRoot.appendChild(p);
+      }
+      notesRoot.appendChild(ul);
+    }
+
+    function renderEditor() {
+      const { selectedId, notes } = store.getState();
+      if (!editorRoot) return;
+      editorRoot.innerHTML = '';
+      if (selectedId === null) return;
+
+      const note = notes.find((n) => n.id === selectedId) || null;
+
+      const modal = document.createElement('div');
+      modal.className = 'modal';
+      modal.id = 'note-editor';
+      modal.setAttribute('role', 'dialog');
+      modal.setAttribute('aria-modal', 'true');
+
+      const overlay = document.createElement('div');
+      overlay.className = 'overlay';
+      overlay.setAttribute('data-close', '');
+      modal.appendChild(overlay);
+
+      const panel = document.createElement('div');
+      panel.className = 'panel';
+
+      const header = document.createElement('header');
+      header.className = 'panel-header';
+
+      const h2 = document.createElement('h2');
+      h2.textContent = note ? 'Edit Note' : 'New Note';
+      header.appendChild(h2);
+
+      const closeBtn = document.createElement('button');
+      closeBtn.className = 'icon';
+      closeBtn.setAttribute('data-close', '');
+      closeBtn.ariaLabel = 'Close';
+      closeBtn.textContent = '✕';
+      header.appendChild(closeBtn);
+
+      panel.appendChild(header);
+
+      const form = document.createElement('form');
+      form.id = 'editor-form';
+
+      const title = document.createElement('input');
+      title.type = 'text';
+      title.id = 'title';
+      title.name = 'title';
+      title.placeholder = 'Title';
+      title.required = true;
+      title.value = note?.title || '';
+      form.appendChild(title);
+
+      const content = document.createElement('textarea');
+      content.id = 'content';
+      content.name = 'content';
+      content.rows = 10;
+      content.placeholder = 'Write your note...';
+      content.textContent = note?.content || '';
+      form.appendChild(content);
+
+      const footer = document.createElement('div');
+      footer.className = 'footer';
+
+      const submit = document.createElement('button');
+      submit.type = 'submit';
+      submit.className = 'btn btn-primary';
+      submit.textContent = note ? 'Save' : 'Create';
+      footer.appendChild(submit);
+
+      form.appendChild(footer);
+      panel.appendChild(form);
+      modal.appendChild(panel);
+      editorRoot.appendChild(modal);
+
+      modal.addEventListener('click', (e) => {
+        const target = e.target as HTMLElement;
+        if (target.hasAttribute('data-close')) {
+          store.select(null);
+          renderEditor();
+        }
+      });
+
+      form.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const newTitle = (title.value || '').trim();
+        const newContent = content.value || '';
+        if (note) {
+          await store.update(note.id, newTitle, newContent);
+        } else {
+          await store.create(newTitle, newContent);
+        }
+        store.select(null);
+        renderEditor();
+      });
+    }
+
+    function wireListClicks() {
+      const root = document.getElementById('notes-list-root');
+      if (!root) return;
+      root.addEventListener('click', async (e) => {
+        const target = e.target as HTMLElement;
+        const li = target.closest('li.note-item') as HTMLElement | null;
+        if (!li) return;
+        const id = li.dataset.id!;
+        const action = target.getAttribute('data-action');
+        if (action === 'delete') {
+          if (confirm('Delete this note?')) {
+            await store.remove(id);
+          }
+        }
+        if (action === 'select') {
+          store.select(id);
+          renderEditor();
+        }
+      });
+    }
+
+    async function boot() {
+      await store.init();
+      renderList();
+      wireListClicks();
+
+      newBtn?.addEventListener('click', () => {
+        // Create mode: no preexisting note, open empty editor
+        const s = store.getState();
+        s.selectedId = ''; // temp marker for create mode
+        renderEditor();
+        // When submitting, store.create handles creation
+      });
+
+      searchInput?.addEventListener('input', (e) => {
+        const q = (e.target as HTMLInputElement).value || '';
+        store.search(q);
+      });
+
+      store.subscribe(() => {
+        renderList();
+      });
+    }
+
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', boot);
+    } else {
+      boot();
+    }
+  </script>
 </Layout>
+
+<style>
+  .page {
+    min-height: 100dvh;
+    background: linear-gradient(180deg, rgba(59,130,246,0.08), rgba(243,244,246,0.8));
+  }
+  .app-header {
+    position: sticky;
+    top: 0;
+    z-index: 50;
+    background: linear-gradient(180deg, rgba(37,99,235,0.06), rgba(249,250,251,1));
+    backdrop-filter: blur(8px);
+    border-bottom: 1px solid rgba(0,0,0,0.06);
+    padding: 16px;
+    display: grid;
+    grid-template-columns: 1fr auto;
+    gap: 12px;
+    align-items: center;
+  }
+  .brand { display: flex; align-items: center; gap: 12px; }
+  .logo { width: 36px; height: 36px; display: grid; place-items: center; border-radius: 10px; background: #2563EB; color: white; }
+  h1 { margin: 0; font-size: 20px; color: #111827; }
+  :global(body.dark-theme) h1 { color: #f9fafb; }
+  .actions { display: flex; gap: 10px; align-items: center; }
+  .search input {
+    width: min(60vw, 340px);
+    padding: 10px 12px;
+    border-radius: 10px;
+    border: 1px solid rgba(0,0,0,0.1);
+    outline: none;
+    background: #ffffff;
+    color: #111827;
+    transition: box-shadow .2s, border-color .2s;
+  }
+  .search input:focus {
+    border-color: #2563EB;
+    box-shadow: var(--ring);
+  }
+  .btn {
+    border: none;
+    border-radius: 10px;
+    padding: 10px 14px;
+    cursor: pointer;
+    transition: transform .05s ease, box-shadow .2s ease, background .2s ease;
+  }
+  .btn-primary {
+    background: #2563EB;
+    color: white;
+    box-shadow: 0 6px 14px rgba(37,99,235,0.25);
+  }
+  .btn-primary:hover { transform: translateY(-1px); box-shadow: 0 8px 18px rgba(37,99,235,0.35); }
+  .btn-primary:active { transform: translateY(0); }
+  @media (max-width: 640px) {
+    .app-header { grid-template-columns: 1fr; }
+    .actions { justify-content: space-between; }
+    .search input { width: 100%; }
+  }
+
+  .content {
+    max-width: 820px;
+    margin: 0 auto;
+    padding: 16px;
+  }
+  .list-section { display: grid; gap: 12px; }
+
+  .notes-list { list-style: none; padding: 0; margin: 0; display: grid; gap: 10px; }
+  .note-item {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    gap: 6px;
+    align-items: center;
+    border: 1px solid rgba(0,0,0,0.06);
+    border-radius: 12px;
+    background: #ffffff;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+    transition: transform .05s ease, box-shadow .2s ease, border-color .2s ease;
+    padding: 10px;
+  }
+  .note-item.active {
+    border-color: #2563EB;
+    box-shadow: 0 6px 14px rgba(37,99,235,0.15);
+  }
+  .note-main {
+    background: transparent;
+    border: none;
+    text-align: left;
+    padding: 6px;
+    cursor: pointer;
+  }
+  .note-title { font-weight: 600; color: #111827; margin-bottom: 4px; }
+  .note-snippet { color: #4b5563; font-size: 14px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .note-delete {
+    background: #EF4444;
+    color: white;
+    border: none;
+    border-radius: 8px;
+    padding: 8px 10px;
+    cursor: pointer;
+    transition: opacity .2s ease;
+  }
+  .note-delete:hover { opacity: 0.9; }
+
+  .modal { position: fixed; inset: 0; display: grid; place-items: center; z-index: 100; }
+  .overlay { position: absolute; inset: 0; background: rgba(17,24,39,0.45); }
+  .panel {
+    position: relative;
+    width: min(720px, 94vw);
+    background: #ffffff;
+    border-radius: 16px;
+    border: 1px solid rgba(0,0,0,0.08);
+    box-shadow: 0 20px 40px rgba(0,0,0,0.22);
+    padding: 16px;
+    animation: pop .12s ease-out;
+  }
+  @keyframes pop { from { transform: translateY(6px); opacity: .0 } to { transform: translateY(0); opacity: 1 } }
+  .panel-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
+  .panel-header h2 { margin: 0; font-size: 18px; color: #111827; }
+  .panel .icon { background: transparent; border: none; cursor: pointer; padding: 8px; border-radius: 8px; }
+  form { display: grid; gap: 10px; }
+  input[type="text"], textarea {
+    width: 100%;
+    background: #ffffff;
+    color: #111827;
+    border: 1px solid rgba(0,0,0,0.12);
+    border-radius: 12px;
+    padding: 10px 12px;
+    outline: none;
+    transition: border-color .2s, box-shadow .2s;
+  }
+  input[type="text"]:focus, textarea:focus {
+    border-color: #2563EB;
+    box-shadow: var(--ring);
+  }
+  .footer { display: flex; justify-content: flex-end; }
+  .btn { border: none; border-radius: 10px; padding: 10px 14px; cursor: pointer; }
+  .btn-primary { background: #2563EB; color: #fff; }
+</style>

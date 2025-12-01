@@ -1,0 +1,65 @@
+---
+import type { Note } from '../lib/storage';
+
+const { visible = false, note = null } = Astro.props as {
+  visible?: boolean;
+  note?: Note | null;
+};
+const titleVal = note?.title ?? '';
+const contentVal = note?.content ?? '';
+const isEditing = !!note?.id;
+---
+{visible && (
+<div class="modal" id="note-editor" role="dialog" aria-modal="true" aria-label="Note editor">
+  <div class="overlay" data-close></div>
+  <div class="panel">
+    <header class="panel-header">
+      <h2>{isEditing ? 'Edit Note' : 'New Note'}</h2>
+      <button class="icon" data-close aria-label="Close">✕</button>
+    </header>
+    <form id="editor-form">
+      <input type="text" id="title" name="title" placeholder="Title" value={titleVal} required />
+      <textarea id="content" name="content" placeholder="Write your note..." rows="10">{contentVal}</textarea>
+      <div class="footer">
+        <button type="submit" class="btn btn-primary">{isEditing ? 'Save' : 'Create'}</button>
+      </div>
+    </form>
+  </div>
+</div>
+)}
+<style>
+  .modal { position: fixed; inset: 0; display: grid; place-items: center; z-index: 100; }
+  .overlay { position: absolute; inset: 0; background: rgba(17,24,39,0.45); }
+  .panel {
+    position: relative;
+    width: min(720px, 94vw);
+    background: #ffffff;
+    border-radius: 16px;
+    border: 1px solid rgba(0,0,0,0.08);
+    box-shadow: 0 20px 40px rgba(0,0,0,0.22);
+    padding: 16px;
+    animation: pop .12s ease-out;
+  }
+  @keyframes pop { from { transform: translateY(6px); opacity: .0 } to { transform: translateY(0); opacity: 1 } }
+  .panel-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
+  .panel-header h2 { margin: 0; font-size: 18px; color: #111827; }
+  .panel .icon { background: transparent; border: none; cursor: pointer; padding: 8px; border-radius: 8px; }
+  form { display: grid; gap: 10px; }
+  input[type="text"], textarea {
+    width: 100%;
+    background: #ffffff;
+    color: #111827;
+    border: 1px solid rgba(0,0,0,0.12);
+    border-radius: 12px;
+    padding: 10px 12px;
+    outline: none;
+    transition: border-color .2s, box-shadow .2s;
+  }
+  input[type="text"]:focus, textarea:focus {
+    border-color: #2563EB;
+    box-shadow: 0 0 0 3px rgba(37,99,235,0.15);
+  }
+  .footer { display: flex; justify-content: flex-end; }
+  .btn { border: none; border-radius: 10px; padding: 10px 14px; cursor: pointer; }
+  .btn-primary { background: #2563EB; color: #fff; }
+</style>

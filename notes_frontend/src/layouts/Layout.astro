@@ -1,54 +1,45 @@
 ---
 import ThemeToggle from '../components/ThemeToggle.astro';
 ---
-
 <!doctype html>
 <html lang="en">
-	<head>
-		<meta charset="UTF-8" />
-		<meta name="viewport" content="width=device-width" />
-		<link rel="icon" type="image/svg+xml" href="/favicon.svg" />
-		<meta name="generator" content={Astro.generator} />
-		<title>Astro Basics</title>
-	</head>
-	<body>
-		<ThemeToggle />
-		<slot />
-	</body>
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <meta name="generator" content={Astro.generator} />
+    <title>Simple Notes</title>
+    <meta name="theme-color" content="#2563EB" />
+    <style>
+      :root {
+        --color-primary: #2563EB;
+        --color-accent: #F59E0B;
+        --color-error: #EF4444;
+        --color-bg: #f9fafb;
+        --color-surface: #ffffff;
+        --color-text: #111827;
+        --color-muted: #4b5563;
+        --ring: 0 0 0 3px rgba(37,99,235,0.15);
+      }
+      body.dark-theme {
+        --color-bg: #0B1220;
+        --color-surface: #0F172A;
+        --color-text: #E5E7EB;
+        --color-muted: #9CA3AF;
+      }
+      html, body {
+        margin: 0; width: 100%; height: 100%;
+        background: var(--color-bg);
+        color: var(--color-text);
+        font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, "Apple Color Emoji", "Segoe UI Emoji";
+      }
+      * { box-sizing: border-box; }
+      button, input, textarea { font: inherit; }
+      a { color: inherit; }
+    </style>
+  </head>
+  <body>
+    <ThemeToggle />
+    <slot />
+  </body>
 </html>
-
-<style>
-	:root {
-		/* Light theme variables */
-		--bg-color: #ffffff;
-		--text-color: #111827;
-		--text-secondary: #4b5563;
-		--border-color: rgba(0, 0, 0, 0.1);
-		--card-bg: rgba(255, 255, 255, 1);
-		--card-hover-bg: rgba(255, 255, 255, 0.55);
-		--shadow-color: rgba(0, 0, 0, 0.1);
-		--shadow-hover-color: rgba(0, 0, 0, 0.15);
-	}
-
-	body.dark-theme {
-		/* Dark theme variables */
-		--bg-color: #111827;
-		--text-color: #f9fafb;
-		--text-secondary: #d1d5db;
-		--border-color: rgba(255, 255, 255, 0.2);
-		--card-bg: rgba(31, 41, 55, 0.9);
-		--card-hover-bg: rgba(31, 41, 55, 0.7);
-		--shadow-color: rgba(0, 0, 0, 0.3);
-		--shadow-hover-color: rgba(0, 0, 0, 0.4);
-	}
-
-	html,
-	body {
-		margin: 0;
-		width: 100%;
-		height: 100%;
-		background-color: var(--bg-color);
-		color: var(--text-color);
-		transition: background-color 0.3s ease, color 0.3s ease;
-	}
-</style>
